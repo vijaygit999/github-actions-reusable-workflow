@@ -1,0 +1,49 @@
+name: Terraform Reusable Workflow
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: "Deployment environment (dev, staging, prod)"
+        required: true
+        type: string
+      bucket_name:
+        description: "S3 bucket name"
+        required: true
+        type: string
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+      AWS_DEFAULT_REGION:
+        required: true
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+
+    env:
+      TF_IN_AUTOMATION: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.5
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: terraform plan -var="environment=${{ inputs.environment }}" -var="bucket_name=${{ inputs.bucket_name }}"
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main'
+        run: terraform apply -auto-approve -var="environment=${{ inputs.environment }}" -var="bucket_name=${{ inputs.bucket_name }}"
