@@ -1,0 +1,24 @@
+name: Deploy S3 with Terraform
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment"
+        required: true
+        default: "dev"
+      bucket_name:
+        description: "S3 Bucket Name"
+        required: true
+        default: "my-github-actions-bucket-123"
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/terraform.yml
+    with:
+      environment: ${{ github.event.inputs.environment }}
+      bucket_name: ${{ github.event.inputs.bucket_name }}
+    secrets:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
