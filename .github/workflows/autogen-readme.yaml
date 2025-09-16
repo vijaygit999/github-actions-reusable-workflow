@@ -1,0 +1,79 @@
+name: Auto Generate README with Terraform Outputs
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+
+jobs:
+  generate-readme:
+    runs-on: ubuntu-latest
+
+    env:
+      TF_IN_AUTOMATION: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.5
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Apply (refresh only)
+        run: terraform apply -refresh-only -auto-approve
+
+      - name: Capture Terraform Outputs
+        id: tfout
+        run: |
+          terraform output -json > tf_outputs.json
+          echo "outputs=$(cat tf_outputs.json)" >> $GITHUB_OUTPUT
+
+      - name: Generate README.md
+        run: |
+          cat > README.md <<'EOF'
+          # Terraform S3 Bucket with GitHub Actions
+
+          This project provisions an **S3 bucket** using Terraform with:
+          - **S3 backend** → stores state remotely
+          - **DynamoDB table** → manages state locking
+
+          ## 🚀 Current Deployment Outputs
+          \`\`\`json
+          $(jq . tf_outputs.json)
+          \`\`\`
+
+          ## 🛠 Setup Steps
+          1. Create S3 + DynamoDB backend (one-time setup).
+          2. Configure GitHub Secrets:
+             - AWS_ACCESS_KEY_ID
+             - AWS_SECRET_ACCESS_KEY
+             - AWS_DEFAULT_REGION
+          3. Trigger GitHub Actions → deploys infra automatically.
+
+          ## 📄 Files
+          - \`backend.tf\` → Remote backend config
+          - \`main.tf\` → S3 bucket resource
+          - \`variables.tf\` → Input variables
+          - \`outputs.tf\` → Useful outputs
+
+          ## 🔄 Workflows
+          - \`.github/workflows/terraform.yml\` → Reusable Terraform workflow
+          - \`.github/workflows/deploy.yml\` → Caller workflow
+          - \`.github/workflows/autogen-readme.yml\` → Auto-documentation
+          EOF
+
+      - name: Commit and Push README.md
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "Auto-update README with Terraform outputs" || echo "No changes to commit"
+          git push
